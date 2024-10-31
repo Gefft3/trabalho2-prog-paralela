@@ -2,14 +2,15 @@
 #include <fstream>
 #include <cstring>
 #include <chrono>
-#include <thread>
 #include <map>
 #include <vector>
 #include "sort.h"
 #include <algorithm>
 #include <set>
+#include <omp.h>
 
 using namespace std;
+using namespace std::chrono;
 
 class Graph {
     public:
@@ -123,86 +124,75 @@ bool Graph::formar_clique(int vertex, vector<int> clique) {
     bool cond1 = se_conecta_a_todos_os_vertices_da_clique(vertex, clique);
     bool cond2 = esta_na_clique(vertex, clique);
 
-    //cout << "vertice vizinho: " << vertex << endl;
-    //cout << "se conecta a todos (tem que): " << cond1 << endl;
-    //cout << "já está na clique (não pode): " << cond2 << endl;
-
     bool condf = (cond1 && !cond2); 
-    //cout << "decisão: " << condf << endl;
+
     return condf;
 }
 
 
 
 int Graph::contagem_cliques_serial(int k) {
-    set<vector<int>> cliques;
+    std::set<std::vector<int>> cliques;
+    int count = 0;
 
-    
-
-    for(auto v: vertices) {
+    // Inicializa os cliques iniciais
+    for (auto v : vertices) {
         cliques.insert({v});
     }
 
-    int count = 0;
-    // int iteracoes = 0;
-    while(!cliques.empty()){
-        //cout << "-----------------------------------" << endl;
-        //cout << "interação - " << ++iteracoes << endl;
-        
-        vector<int> clique = *cliques.cbegin();
-        //cout << "Size of cliques before pop: " << cliques.size() << endl;
-        
-        cliques.erase(find(cliques.begin(), cliques.end(), clique));
-        //cout << "Size of cliques after pop: " << cliques.size() << endl;
+    // Paraleliza a contagem de cliques usando um loop paralelo
+    #pragma omp parallel reduction(+:count)
+    {
+        // Cada thread terá sua própria cópia local de cliques para evitar problemas de concorrência
+        std::set<std::vector<int>> local_cliques = cliques;
 
-        
-        //cout << "Clique atual: ";
-        // printar_clique(clique);
-        //cout << endl;
-        int tamanho_clique = clique.size();
-        if(tamanho_clique == k){
-            //cout << "Clique encontrada: ";
-            count++;
-            continue;
-        }
-        
-        int ultimo_vertice = clique.back();
-        
-        //cout << "Ultimo vertice: " << ultimo_vertice << endl;
+        while (!local_cliques.empty()) {
+            auto clique = *local_cliques.begin();
+            local_cliques.erase(local_cliques.begin());
 
-        for(int vertice : clique){
-            vector<int> vizinhos_atual = getNeighbours(vertice); 
-            //cout << "Vizinhos do vertice " << vertice << ": ";
-            // for(auto v: vizinhos_atual){
-                //cout << v << " ";
-            // }
-            //cout << endl;
-            
-            
-            for(int vizinho: vizinhos_atual){
-                if(vizinho > ultimo_vertice && formar_clique(vizinho, clique)){
-                    //cout << "ENTROU!!! " << endl;
-                    vector<int> nova_clique = clique;
-                    nova_clique.push_back(vizinho);
-                    cliques.insert(nova_clique);
+            int tamanho_clique = clique.size();
+            if (tamanho_clique == k) {
+                count++;
+                continue;
+            }
+
+            int ultimo_vertice = clique.back();
+
+            for (int vertice : clique) {
+                std::vector<int> vizinhos_atual = getNeighbours(vertice);
+
+                for (int vizinho : vizinhos_atual) {
+                    if (vizinho > ultimo_vertice && formar_clique(vizinho, clique)) {
+                        std::vector<int> nova_clique = clique;
+                        nova_clique.push_back(vizinho);
+                        local_cliques.insert(nova_clique);
+                    }
                 }
             }
         }
-
-        //cout << "voltou para cima" << endl;
-
     }
-    
+
     return count;
 }
 
-int main() {
-    string dataset = "../datasets/ca_astroph.edgelist";
-    // string dataset = "teste";
+
+int main(int argc, char* argv[]) {
+
+    string dataset = argv[1];
+    int k_clique = atoi(argv[2]);
+
     vector<pair<int, int>> edges = rename(dataset);
     Graph* g = new Graph(edges);
-    // g->printar_grafo();
-    cout << g->contagem_cliques_serial(5) << endl;
+    
+
+    auto start = high_resolution_clock::now();
+    int clique_count = g->contagem_cliques_serial(k_clique);
+    auto end = chrono::high_resolution_clock::now();
+    duration<double> duration = end - start;
+    
+    cout << "Resultado: " << clique_count << endl;
+    cout << "Tempo de execução: " << duration.count() << " segundos" << endl;
+    
     g->release();
     delete g;
 }
