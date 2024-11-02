@@ -172,10 +172,14 @@ int Graph::contagem_cliques_paralela_balanceada(long unsigned int k, int n_threa
 
     omp_set_num_threads(num_threads);
 
+    atomic<bool> work_done(false);
+
     #pragma omp parallel
     {
         unsigned int tid = omp_get_thread_num();
         int local_count = 0;
+
+        srand(time(NULL) + tid);
 
         while (true) {
             vector<int> clique;
@@ -219,8 +223,8 @@ int Graph::contagem_cliques_paralela_balanceada(long unsigned int k, int n_threa
 
                 bool roubou = false;
 
-                for (unsigned int offset = 1; offset < num_threads; ++offset) {
-                    unsigned int victim_tid = (tid + offset) % num_threads;
+                for (unsigned int attempt = 0; attempt < num_threads; ++attempt) {
+                    unsigned int victim_tid = rand() % num_threads;
 
                     if (victim_tid == tid) continue;
 
@@ -254,7 +258,17 @@ int Graph::contagem_cliques_paralela_balanceada(long unsigned int k, int n_threa
                 }
 
                 if (!roubou) {
-                    break;
+                    bool all_done = true;
+                    for (unsigned int i = 0; i < num_threads; ++i) {
+                        if (!cliques_por_thread[i].empty()) {
+                            all_done = false;
+                            break;
+                        }
+                    }
+                    if (all_done) {
+                        work_done.store(true);
+                        break;
+                    }
                 }
             }
         }
@@ -290,6 +304,8 @@ int main(int argc, char* argv[]) {
     auto end = high_resolution_clock::now();
     duration<double> duration = end - start;
 
+    cout << "Dataset: " << dataset << endl;
+    cout << "Tamanho do k: " << k_cliques << endl;
     cout << "Resultado: " << result << endl;
     cout << "Tempo de execução: " << duration.count() << " segundos" << endl;
     g->release();
