@@ -34,9 +34,9 @@ class Graph {
             }
         }
 
-        int contagem_cliques_paralela_static(int k, int n_threads);
-        int contagem_cliques_paralela_dynamic(int k, int n_threads, int chunk);
-        int contagem_cliques_paralela_guided(int k, int n_threads);
+        int contagem_cliques_paralela_static(long unsigned int k, int n_threads);
+        int contagem_cliques_paralela_dynamic(long unsigned int k, int n_threads, int chunk);
+        int contagem_cliques_paralela_guided(long unsigned int k, int n_threads);
         bool esta_na_clique(int vertex, vector<int> clique);
         bool se_conecta_a_todos_os_vertices_da_clique(int vertex, vector<int> clique);
         bool formar_clique(int vertex, vector<int> clique);
@@ -136,7 +136,7 @@ bool clique_ja_existe(const set<vector<int>>& cliques, const vector<int>& clique
     return cliques.find(clique) != cliques.end();
 }
 
-int Graph::contagem_cliques_paralela_static(int k, int n_threads) {
+int Graph::contagem_cliques_paralela_static(long unsigned int k, int n_threads) {
     omp_set_dynamic(0);
     omp_set_num_threads(n_threads);
 
@@ -184,7 +184,7 @@ int Graph::contagem_cliques_paralela_static(int k, int n_threads) {
     return total_count;
 }
 
-int Graph::contagem_cliques_paralela_dynamic(int k, int n_threads, int chunk) {
+int Graph::contagem_cliques_paralela_dynamic(long unsigned int k, int n_threads, int chunk) {
     omp_set_dynamic(0);
     omp_set_num_threads(n_threads);
 
@@ -236,7 +236,7 @@ int Graph::contagem_cliques_paralela_dynamic(int k, int n_threads, int chunk) {
     return total_count;
 }
 
-int Graph::contagem_cliques_paralela_guided(int k, int n_threads) {
+int Graph::contagem_cliques_paralela_guided(long unsigned int k, int n_threads) {
     omp_set_dynamic(0);
     omp_set_num_threads(n_threads);
 
