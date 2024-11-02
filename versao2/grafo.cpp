@@ -38,7 +38,7 @@ class Graph {
             }
         }
 
-        int contagem_cliques_paralela_balanceada(int k, int n_threads, long unsigned  roubo_carga);
+        int contagem_cliques_paralela_balanceada(long unsigned int k, int n_threads, long unsigned  roubo_carga);
         bool esta_na_clique(int vertex, vector<int> clique);
         bool se_conecta_a_todos_os_vertices_da_clique(int vertex, vector<int> clique);
         bool formar_clique(int vertex, vector<int> clique);
@@ -129,12 +129,8 @@ bool Graph::formar_clique(int vertex, vector<int> clique) {
     bool cond1 = se_conecta_a_todos_os_vertices_da_clique(vertex, clique);
     bool cond2 = esta_na_clique(vertex, clique);
 
-    //cout << "vertice vizinho: " << vertex << endl;
-    //cout << "se conecta a todos (tem que): " << cond1 << endl;
-    //cout << "já está na clique (não pode): " << cond2 << endl;
-
     bool condf = (cond1 && !cond2); 
-    //cout << "decisão: " << condf << endl;
+
     return condf;
 }
 
@@ -142,16 +138,13 @@ bool clique_ja_existe(const set<vector<int>>& cliques, const vector<int>& clique
     return cliques.find(clique) != cliques.end();
 }
 
-#include <omp.h>
-
-int Graph::contagem_cliques_paralela_balanceada(int k, int n_threads, long unsigned int roubo_carga) {
+int Graph::contagem_cliques_paralela_balanceada(long unsigned int k, int n_threads, long unsigned int roubo_carga) {
     unsigned int num_threads = n_threads;
 
     if (num_threads == 0) {
         num_threads = 1; 
     }
 
-    // Criação dos cliques iniciais com um vértice
     vector<vector<int>> cliques_iniciais;
     for (auto v : vertices) {
         cliques_iniciais.push_back({v});
@@ -198,7 +191,7 @@ int Graph::contagem_cliques_paralela_balanceada(int k, int n_threads, long unsig
 
             if (has_work) {
 
-                int tamanho_clique = clique.size();
+                long unsigned tamanho_clique = clique.size();
                 if (tamanho_clique == k) {
                     local_count++;
                     continue;
