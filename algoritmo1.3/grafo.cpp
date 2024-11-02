@@ -125,16 +125,12 @@ bool Graph::formar_clique(int vertex, vector<int> clique) {
     bool cond1 = se_conecta_a_todos_os_vertices_da_clique(vertex, clique);
     bool cond2 = esta_na_clique(vertex, clique);
 
-    //cout << "vertice vizinho: " << vertex << endl;
-    //cout << "se conecta a todos (tem que): " << cond1 << endl;
-    //cout << "já está na clique (não pode): " << cond2 << endl;
-
     bool condf = (cond1 && !cond2); 
-    //cout << "decisão: " << condf << endl;
+
     return condf;
 }
 
-bool clique_ja_existe(const std::set<std::vector<int>>& cliques, const std::vector<int>& clique) {
+bool clique_ja_existe(const set<vector<int>>& cliques, const vector<int>& clique) {
     return cliques.find(clique) != cliques.end();
 }
 
@@ -142,7 +138,6 @@ int Graph::contagem_cliques_paralela_guided(int k, int n_threads) {
     omp_set_dynamic(0);
     omp_set_num_threads(n_threads);
 
-    // Criação dos cliques iniciais com um vértice
     vector<vector<int>> cliques_iniciais;
     for (auto v : vertices) {
         cliques_iniciais.push_back({v});
@@ -153,7 +148,11 @@ int Graph::contagem_cliques_paralela_guided(int k, int n_threads) {
     #pragma omp parallel for schedule(guided) reduction(+:total_count)
     for (size_t i = 0; i < cliques_iniciais.size(); ++i) {
         set<vector<int>> cliques;
-        cliques.insert(cliques_iniciais[i]);
+        
+        #pragma omp critical
+        {
+            cliques.insert(cliques_iniciais[i]);
+        }
 
         int count = 0;
 

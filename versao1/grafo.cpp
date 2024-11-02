@@ -34,7 +34,9 @@ class Graph {
             }
         }
 
-        int contagem_cliques_paralela_dynamic(int k, int n_threads);
+        int contagem_cliques_paralela_static(int k, int n_threads);
+        int contagem_cliques_paralela_dynamic(int k, int n_threads, int chunk);
+        int contagem_cliques_paralela_guided(int k, int n_threads);
         bool esta_na_clique(int vertex, vector<int> clique);
         bool se_conecta_a_todos_os_vertices_da_clique(int vertex, vector<int> clique);
         bool formar_clique(int vertex, vector<int> clique);
@@ -134,7 +136,7 @@ bool clique_ja_existe(const set<vector<int>>& cliques, const vector<int>& clique
     return cliques.find(clique) != cliques.end();
 }
 
-int Graph::contagem_cliques_paralela_dynamic(int k, int n_threads) {
+int Graph::contagem_cliques_paralela_static(int k, int n_threads) {
     omp_set_dynamic(0);
     omp_set_num_threads(n_threads);
 
@@ -145,7 +147,55 @@ int Graph::contagem_cliques_paralela_dynamic(int k, int n_threads) {
 
     int total_count = 0;
 
-    #pragma omp parallel for schedule(dynamic, 10) reduction(+:total_count)
+    #pragma omp parallel for schedule(static) reduction(+:total_count)
+    for (size_t i = 0; i < cliques_iniciais.size(); ++i) {
+        set<vector<int>> cliques;
+        cliques.insert(cliques_iniciais[i]);
+
+        int count = 0;
+
+        while (!cliques.empty()) {
+            vector<int> clique = *cliques.begin();
+            cliques.erase(cliques.begin());
+
+            if (clique.size() == k) {
+                count++;
+                continue;
+            }
+
+            int ultimo_vertice = clique.back();
+
+            for (int vertice : clique) {
+                vector<int> vizinhos_atual = getNeighbours(vertice);
+
+                for (int vizinho : vizinhos_atual) {
+                    if (vizinho > ultimo_vertice && formar_clique(vizinho, clique)) {
+                        vector<int> nova_clique = clique;
+                        nova_clique.push_back(vizinho);
+                        cliques.insert(nova_clique);
+                    }
+                }
+            }
+        }
+
+        total_count += count;
+    }
+
+    return total_count;
+}
+
+int Graph::contagem_cliques_paralela_dynamic(int k, int n_threads, int chunk) {
+    omp_set_dynamic(0);
+    omp_set_num_threads(n_threads);
+
+    vector<vector<int>> cliques_iniciais;
+    for (auto v : vertices) {
+        cliques_iniciais.push_back({v});
+    }
+
+    int total_count = 0;
+
+    #pragma omp parallel for schedule(dynamic, chunk) reduction(+:total_count)
     for (size_t i = 0; i < cliques_iniciais.size(); ++i) {
         set<vector<int>> cliques;
 
@@ -186,17 +236,87 @@ int Graph::contagem_cliques_paralela_dynamic(int k, int n_threads) {
     return total_count;
 }
 
+int Graph::contagem_cliques_paralela_guided(int k, int n_threads) {
+    omp_set_dynamic(0);
+    omp_set_num_threads(n_threads);
+
+    vector<vector<int>> cliques_iniciais;
+    for (auto v : vertices) {
+        cliques_iniciais.push_back({v});
+    }
+
+    int total_count = 0;
+
+    #pragma omp parallel for schedule(guided) reduction(+:total_count)
+    for (size_t i = 0; i < cliques_iniciais.size(); ++i) {
+        set<vector<int>> cliques;
+        
+        #pragma omp critical
+        {
+            cliques.insert(cliques_iniciais[i]);
+        }
+
+        int count = 0;
+
+        while (!cliques.empty()) {
+            vector<int> clique = *cliques.begin();
+            cliques.erase(cliques.begin());
+
+            if (clique.size() == k) {
+                count++;
+                continue;
+            }
+
+            int ultimo_vertice = clique.back();
+
+            for (int vertice : clique) {
+                vector<int> vizinhos_atual = getNeighbours(vertice);
+
+                for (int vizinho : vizinhos_atual) {
+                    if (vizinho > ultimo_vertice && formar_clique(vizinho, clique)) {
+                        vector<int> nova_clique = clique;
+                        nova_clique.push_back(vizinho);
+                        cliques.insert(nova_clique);
+                    }
+                }
+            }
+        }
+
+        total_count += count;
+    }
+
+    return total_count;
+}
+
+
+int call_method(Graph* g, string method ,int k_cliques, int n_threads, int chunk) {
+    
+    if (method == "static") {
+        return g->contagem_cliques_paralela_static(k_cliques, n_threads);
+    } else if (method == "dynamic") {
+        return g->contagem_cliques_paralela_dynamic(k_cliques, n_threads, chunk);
+    } else if (method == "guided") {
+        return g->contagem_cliques_paralela_guided(k_cliques, n_threads);
+    }
+    
+    
+    return 0;
+}
+
+
 int main(int argc, char *argv[]) {
     
     string dataset = argv[1];
     int k_cliques = atoi(argv[2]);
     int n_threads = atoi(argv[3]);
+    string method = argv[4];
+    int chunk = atoi(argv[5]);
 
     vector<pair<int, int>> edges = rename(dataset);
     Graph* g = new Graph(edges);
 
     auto start = high_resolution_clock::now();
-    int result = g->contagem_cliques_paralela_dynamic(k_cliques, n_threads);
+    int result = call_method(g, method, k_cliques, n_threads, chunk);
     auto end = high_resolution_clock::now();
     duration<double> duration = end - start;
     
