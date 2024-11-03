@@ -1,6 +1,6 @@
 dataset="../datasets/ca_astroph.edgelist"
-k_cliques=3
+k_cliques=7
 n_threads=16
-carga_roubada=1000
+carga_roubada=100
 
 ./programa $dataset $k_cliques $n_threads $carga_roubada

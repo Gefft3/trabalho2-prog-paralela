@@ -172,7 +172,7 @@ int Graph::contagem_cliques_paralela_balanceada(long unsigned int k, int n_threa
 
     omp_set_num_threads(num_threads);
 
-    atomic<bool> work_done(false);
+    std::atomic<bool> work_done(false);
 
     #pragma omp parallel
     {
@@ -181,7 +181,7 @@ int Graph::contagem_cliques_paralela_balanceada(long unsigned int k, int n_threa
 
         srand(time(NULL) + tid);
 
-        while (true) {
+        while (!work_done.load()) {
             vector<int> clique;
             bool has_work = false;
 
@@ -260,15 +260,17 @@ int Graph::contagem_cliques_paralela_balanceada(long unsigned int k, int n_threa
                 if (!roubou) {
                     bool all_done = true;
                     for (unsigned int i = 0; i < num_threads; ++i) {
+                        omp_set_lock(&locks[i]);
                         if (!cliques_por_thread[i].empty()) {
                             all_done = false;
-                            break;
                         }
+                        omp_unset_lock(&locks[i]);
+                        if (!all_done) break;
                     }
                     if (all_done) {
                         work_done.store(true);
-                        break;
                     }
+                    break;
                 }
             }
         }
